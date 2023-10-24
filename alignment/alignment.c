@@ -6,13 +6,16 @@
 
 #include "alignment.h"
 
+// Direction used for the traceback
 enum BACK_DIR {LEFT, TOP, TOP_LEFT};
 
+// Cell of the dynamic programming matrix
 typedef struct {
   unsigned int distance;
   enum BACK_DIR backdir;
 } cell_t;
 
+// Dynamic programming matrix + relevant data used in the algorithm
 typedef struct {
   cell_t **mat;
   const char *x, *y;
@@ -21,6 +24,7 @@ typedef struct {
                replace_p, gap_p;
 } matrix_t;
 
+// Allocate a new matrix_t
 static inline matrix_t *matrix_alloc(const char *x, const char *y, int replace_p, int gap_p) {
   matrix_t *mat = calloc(1, sizeof(matrix_t));
   if (!mat) abort();
@@ -39,6 +43,7 @@ static inline matrix_t *matrix_alloc(const char *x, const char *y, int replace_p
   return mat;
 }
 
+// Deallocate a matrix_t
 static inline void matrix_free(matrix_t *m) {
   assert(m != NULL);
   for (int i = 0; i < m->rows; i++)
@@ -156,6 +161,7 @@ static inline void traceback(matrix_t *m, alignment_t *r) {
   r->y[z] = '\0';
 }
 
+// Reverse the given string
 static inline void strrev(char *a) {
   char tmp;
   int len = strlen(a),
