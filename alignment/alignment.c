@@ -63,11 +63,6 @@ void alignment_free(alignment_t **a) {
   *a = NULL;
 }
 
-// Return true if access is outside of the matrix
-static inline bool is_outside(matrix_t *mat, int i, int j) {
-  return i < 0 || i >= mat->rows || j < 0 || j >= mat->cols;
-}
-
 // Return the min between the three numbers
 static inline enum BACK_DIR min(unsigned int left, unsigned int top, unsigned int topleft) {
   if (left < top) {
