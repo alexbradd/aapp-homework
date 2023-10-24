@@ -230,7 +230,7 @@ int main(void) {
   // equality
   test("ACGT", "ACGT");
 
-  // Trying my best at complete disequality (reverse complement)
-  test("ACGTGTCA", "TGACACGT");
+  // Test to show that the length of the aligned string is at worst m+n
+  test("GGGGG", "CCCCC");
 }
 #endif
