@@ -202,27 +202,31 @@ alignment_t *align(const char *x,
 }
 
 #ifdef MAIN
-#define REPLACE_PENALTY 10
-#define GAP_PENALTY     2
-
-void test(const char *x, const char *y) {
+void test(const char *x, const char *y, unsigned int gap_p, unsigned int replace_p) {
   alignment_t *a;
 
   printf(">>> Aligning '%s' and '%s'\n", x, y);
   printf(">>> Using %d for the gap penalty and %d for the replace penalty\n",
-         GAP_PENALTY, REPLACE_PENALTY);
+         gap_p, replace_p);
 
-  a = align(x, y, REPLACE_PENALTY, GAP_PENALTY);
+  a = align(x, y, replace_p, gap_p);
   printf("x: %s\ny: %s\ncost = %d\n", a->x, a->y, a->cost);
   alignment_free(&a);
 }
 
 int main(int argc, char **argv) {
+  unsigned int gap_p = 2;
+  unsigned int replace_p = 10;
+
   if (argc < 3) {
     printf("Not enough arguments\n");
     return 0;
   }
-  test(argv[1], argv[2]);
+  if (argc >= 5) {
+    gap_p = atoi(argv[3]);
+    replace_p = atoi(argv[4]);
+  }
+  test(argv[1], argv[2], gap_p, replace_p);
   putchar('\n');
 }
 #endif
