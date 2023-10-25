@@ -36,10 +36,10 @@ static inline void string_pair_free(string_pair_t **s) {
 // - truncate patterns, or
 // - fill with the last character in pattern
 void insert_pattern(char *x, size_t m, const char *pattern) {
-  if (m < 4) {
-    strncpy(x, pattern, m);
+  if (m <= 4) {
+    memcpy(x, pattern, m);
   } else {
-    strncpy(x, pattern, 4);
+    memcpy(x, pattern, 4);
     for (int i = 4; i < m; i++)
       x[i] = pattern[3];
   }
