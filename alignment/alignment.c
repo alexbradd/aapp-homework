@@ -209,29 +209,20 @@ void test(const char *x, const char *y) {
   alignment_t *a;
 
   printf(">>> Aligning '%s' and '%s'\n", x, y);
+  printf(">>> Using %d for the gap penalty and %d for the replace penalty\n",
+         GAP_PENALTY, REPLACE_PENALTY);
+
   a = align(x, y, REPLACE_PENALTY, GAP_PENALTY);
-  printf("x: %s; y: %s; cost = %d\n", a->x, a->y, a->cost);
+  printf("x: %s\ny: %s\ncost = %d\n", a->x, a->y, a->cost);
   alignment_free(&a);
 }
 
-int main(void) {
-  printf("Alignment test\n");
-
-  // empty string
-  test("", "");
-
-  // classroom examples
-  test("CG", "CA");
-  test("AGGGCT", "AGGCA");
-
-  // substring
-  test("AGGGCT", "GCT");
-  test("GCT", "ACTGGCT");
-
-  // equality
-  test("ACGT", "ACGT");
-
-  // Test to show that the length of the aligned string is at worst m+n
-  test("GGGGG", "CCCCC");
+int main(int argc, char **argv) {
+  if (argc < 3) {
+    printf("Not enough arguments\n");
+    return 0;
+  }
+  test(argv[1], argv[2]);
+  putchar('\n');
 }
 #endif
