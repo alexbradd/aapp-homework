@@ -202,21 +202,26 @@ alignment_t *align(const char *x,
 }
 
 #ifdef MAIN
-void test(const char *x, const char *y, unsigned int gap_p, unsigned int replace_p) {
+void test(const char *x, const char *y, unsigned int gap_p, unsigned int replace_p, bool only_cost) {
   alignment_t *a;
-
-  printf(">>> Aligning '%s' and '%s'\n", x, y);
-  printf(">>> Using %d for the gap penalty and %d for the replace penalty\n",
-         gap_p, replace_p);
-
   a = align(x, y, replace_p, gap_p);
-  printf("x: %s\ny: %s\ncost = %d\n", a->x, a->y, a->cost);
+
+  if (!only_cost) {
+    printf(">>> Aligning '%s' and '%s'\n", x, y);
+    printf(">>> Using %d for the gap penalty and %d for the replace penalty\n",
+           gap_p, replace_p);
+    printf("x: %s\ny: %s\ncost = %d\n", a->x, a->y, a->cost);
+    putchar('\n');
+  } else {
+    printf("%d\n", a->cost);
+  }
   alignment_free(&a);
 }
 
 int main(int argc, char **argv) {
   unsigned int gap_p = 2;
   unsigned int replace_p = 10;
+  bool only_cost = false;
 
   if (argc < 3) {
     printf("Not enough arguments\n");
@@ -226,7 +231,10 @@ int main(int argc, char **argv) {
     gap_p = atoi(argv[3]);
     replace_p = atoi(argv[4]);
   }
-  test(argv[1], argv[2], gap_p, replace_p);
-  putchar('\n');
+  if (argc >= 6) {
+    if (strcmp(argv[5], "q") == 0)
+      only_cost = true;
+  }
+  test(argv[1], argv[2], gap_p, replace_p, only_cost);
 }
 #endif
