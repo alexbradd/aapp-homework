@@ -1,9 +1,9 @@
 #include <algorithm>
-#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
+#include <omp.h>
 
 #include "mpi_error_check.hpp"
 
@@ -71,31 +71,53 @@ size_t count_coverage(const std::string &dataset, const char *ngram) {
   return counter * ngram_size;
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
-  // read the whole database of SMILES and put them in a single string
-  // NOTE: we can figure out which is our alphabet
+// OpenMP number of threads is passed via environment variable by launch.sh
+int main(int argc, char *argv[]) {
+  if (argc < 1)
+    return -1;
+  const int num_threads = abs(atoi(argv[1])); // I know this is not very good, but it works
+  omp_set_num_threads(num_threads);
+
   std::cerr << "Reading the molecules from the standard input ..." << std::endl;
   std::unordered_set<char> alphabet_builder;
+  std::vector<char> alphabet;
   std::string database;
   database.reserve(209715200);  // 200MB
-  for (std::string line; std::getline(std::cin, line);
-       /* automatically handled */) {
-    for (const auto character : line) {
-      alphabet_builder.emplace(character);
-      database.push_back(character);
+
+  std::vector<size_t> permutations(max_pattern_len, 0);
+
+  #pragma omp parallel
+  {
+    #pragma omp single
+    {
+      // Read line by line and parallely process the database and alphabet
+      for (std::string line; std::getline(std::cin, line);) {
+        #pragma omp task shared(line)
+        {
+          for (const auto character : line)
+            database.push_back(character);
+        }
+        #pragma omp task shared(line)
+        {
+          for (const auto character : line)
+            alphabet_builder.emplace(character);
+        }
+        #pragma omp taskwait
+      }
+      // When we finish with reading from input, we parallely compute the alphabet and the permutations
+      #pragma omp task
+      {
+        alphabet.reserve(alphabet_builder.size());
+        for (const auto &c : alphabet_builder)
+          alphabet.push_back(c);
+      }
+      #pragma omp task
+      {
+        permutations[0] = alphabet_builder.size();
+        for (std::size_t i{1}; i < permutations.size(); ++i)
+          permutations[i] = alphabet_builder.size() * permutations[i - std::size_t{1}];
+      }
     }
-  }
-
-  // put the alphabet in a container with random access capabilities
-  std::vector<char> alphabet;
-  alphabet_builder.reserve(alphabet_builder.size());
-  std::for_each(std::begin(alphabet_builder), std::end(alphabet_builder),
-                [&alphabet](const auto character) { alphabet.push_back(character); });
-
-  // precompute the number of permutations according to the number of characters
-  auto permutations = std::vector(max_pattern_len, alphabet.size());
-  for (std::size_t i{1}; i < permutations.size(); ++i) {
-    permutations[i] = alphabet.size() * permutations[i - std::size_t{1}];
   }
 
   // declare the dictionary that holds all the ngrams with the greatest coverage

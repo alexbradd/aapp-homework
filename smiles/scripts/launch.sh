@@ -44,6 +44,8 @@ fi
 #                           - the number of processes in MPI
 #########################################################################
 
-
 # launch the application (using MPI)
-mpirun -np "$parallelism_level" "$application_filepath" < "$input_filepath" > "$output_filepath"
+# mpirun -np "$parallelism_level" "$application_filepath" < "$input_filepath" > "$output_filepath"
+#
+# We do not need MPI run since we are using OpenMP
+"$application_filepath" "$parallelism_level" < "$input_filepath" >"$output_filepath"
