@@ -90,20 +90,16 @@ int main(int argc, char *argv[]) {
   {
     #pragma omp single
     {
-      // Read line by line and parallely process the database and alphabet
+      // Read line by line sequentially and fill alphabet_builder and database
+      //
+      // Trying to parallelize this part would lead to a lot of overhead due to locking
       for (std::string line; std::getline(std::cin, line);) {
-        #pragma omp task shared(line)
-        {
-          for (const auto character : line)
-            database.push_back(character);
+        for (const auto& c: line) {
+          alphabet_builder.emplace(c);
+          database.push_back(c);
         }
-        #pragma omp task shared(line)
-        {
-          for (const auto character : line)
-            alphabet_builder.emplace(character);
-        }
-        #pragma omp taskwait
       }
+
       // When we finish with reading from input, we parallely compute the alphabet and the permutations
       #pragma omp task
       {
