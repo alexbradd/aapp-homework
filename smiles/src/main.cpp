@@ -90,7 +90,8 @@ int main(int argc, char *argv[]) {
   // of the dictionary
   dictionary result;
 
-  #pragma omp parallel num_threads(2)
+  int n = std::min(2, num_threads);
+  #pragma omp parallel num_threads(n)
   {
     #pragma omp single
     {
