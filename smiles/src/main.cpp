@@ -86,7 +86,11 @@ int main(int argc, char *argv[]) {
 
   std::vector<size_t> permutations(max_pattern_len, 0);
 
-  #pragma omp parallel
+  // declare the dictionary that holds all the ngrams with the greatest coverage
+  // of the dictionary
+  dictionary result;
+
+  #pragma omp parallel num_threads(2)
   {
     #pragma omp single
     {
@@ -116,19 +120,18 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // declare the dictionary that holds all the ngrams with the greatest coverage
-  // of the dictionary
-  dictionary result;
-
   // this outer loop goes through the n-gram with different sizes
   for (std::size_t ngram_size{1}; ngram_size <= max_pattern_len; ++ngram_size) {
     std::cerr << "Evaluating ngrams with " << ngram_size << " characters" << std::endl;
 
     // this loop goes through all the permutation of the current ngram-size
     const auto num_words = permutations[ngram_size - std::size_t{1}];
-    for (std::size_t word_index{0}; word_index < num_words; ++word_index) {
+    std::vector<word> words(num_words);
+
+    #pragma omp parallel for schedule(dynamic)
+    for (std::size_t word_index = 0; word_index < num_words; ++word_index) {
       // compose the ngram
-      word current_word;
+      word& current_word = words[word_index];
       memset(current_word.ngram, '\0', max_pattern_len + 1);
       for (std::size_t character_index{0}, remaining_size = word_index; character_index < ngram_size;
            ++character_index, remaining_size /= alphabet.size()) {
@@ -138,17 +141,13 @@ int main(int argc, char *argv[]) {
 
       // evaluate the coverage and add the word to the dictionary
       current_word.coverage = count_coverage(database, current_word.ngram);
-      result.add_word(current_word);
     }
 
-    // dump an intermediate version after computing a certain number of
-    // characters
-    std::cerr << "Current dictionary:" << std::endl;
-    result.write(std::cerr);
+    for (auto &w: words)
+      result.add_word(w);
   }
 
   // generate the final dictionary
-  // NOTE: we sort it for pretty-printing
   std::cout << "NGRAM COVERAGE" << std::endl;
   std::sort(std::begin(result.data), std::end(result.data), word_coverage_gt_comparator{});
   result.write(std::cout);
