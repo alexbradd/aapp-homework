@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <unordered_set>
 #include <vector>
 #include <omp.h>
@@ -73,13 +74,13 @@ size_t count_coverage(const std::string &dataset, const char *ngram) {
 
 // OpenMP number of threads is passed via environment variable by launch.sh
 int main(int argc, char *argv[]) {
-  if (argc < 1)
-    return -1;
+  if (argc < 3)
+    return EXIT_FAILURE;
   const int num_threads = abs(atoi(argv[1])); // I know this is not very good, but it works
   omp_set_num_threads(num_threads);
+  const std::string filename(argv[2]);
 
-  std::cerr << "Reading the molecules from the standard input ..." << std::endl;
-  std::unordered_set<char> alphabet_builder;
+  // ==== Allocate needed structures
   std::vector<char> alphabet;
   std::string database;
   database.reserve(209715200);  // 200MB
@@ -90,37 +91,69 @@ int main(int argc, char *argv[]) {
   // of the dictionary
   dictionary result;
 
-  int n = std::min(2, num_threads);
-  #pragma omp parallel num_threads(n)
-  {
-    #pragma omp single
-    {
-      // Read line by line sequentially and fill alphabet_builder and database
-      //
-      // Trying to parallelize this part would lead to a lot of overhead due to locking
-      for (std::string line; std::getline(std::cin, line);) {
-        for (const auto& c: line) {
-          alphabet_builder.emplace(c);
-          database.push_back(c);
-        }
-      }
+  // ==== Input
+  std::cerr << "Reading the molecules..." << std::endl;
+  std::ifstream in_file(filename, std::ios::ate);
+  // that the file exists is checked by the launcher script
+  size_t filesize = static_cast<size_t>(in_file.tellg());
+  in_file.seekg(0);
 
-      // When we finish with reading from input, we parallely compute the alphabet and the permutations
+  // Parallely read at different offsets
+  std::vector<std::string> reads(num_threads + 1);
+  std::vector<std::unordered_set<char>> builders(num_threads + 1);
+  #pragma omp parallel default(none) shared(filename, filesize, reads, builders)
+  {
+    std::ifstream file(filename);
+    size_t chunk = filesize / omp_get_num_threads();
+    size_t initial_off = omp_get_thread_num() * chunk;
+    file.seekg(initial_off);
+
+    char c;
+    for (size_t i = initial_off; i < initial_off + chunk; i++) {
+      file >> std::noskipws >> c;
+      if (c != '\n' && c != '\r' && c != ' ' && c != '\t') {
+        builders[omp_get_thread_num()].emplace(c);
+        reads[omp_get_thread_num()].push_back(c);
+      }
+    }
+  }
+  // Read what is left
+  in_file.seekg(-(filesize % num_threads), std::ios::end);
+  char c;
+  do {
+    in_file >> c;
+    if (in_file.eof()) break;
+    reads[num_threads].push_back(c);
+    builders[num_threads].emplace(c);
+  } while (!in_file.eof());
+  // Reduce parallely into database and alphabet
+  #pragma omp parallel default(none) shared(reads, builders, database, alphabet)
+  {
+    #pragma omp single nowait
+    {
       #pragma omp task
       {
-        alphabet.reserve(alphabet_builder.size());
-        for (const auto &c : alphabet_builder)
-          alphabet.push_back(c);
+        for (const auto &r: reads)
+          database.append(r);
       }
       #pragma omp task
       {
-        permutations[0] = alphabet_builder.size();
-        for (std::size_t i{1}; i < permutations.size(); ++i)
-          permutations[i] = alphabet_builder.size() * permutations[i - std::size_t{1}];
+        std::unordered_set<char> alphabet_builder;
+        for (const auto &b: builders)
+          for (const auto &c: b)
+            alphabet_builder.emplace(c);
+        alphabet.reserve(alphabet_builder.size());
+        for (const auto &c: alphabet_builder)
+          alphabet.push_back(c);
       }
     }
   }
 
+  permutations[0] = alphabet.size();
+  for (std::size_t i{1}; i < permutations.size(); ++i)
+    permutations[i] = alphabet.size() * permutations[i - std::size_t{1}];
+
+  // ==== algorithm
   // this outer loop goes through the n-gram with different sizes
   for (std::size_t ngram_size{1}; ngram_size <= max_pattern_len; ++ngram_size) {
     std::cerr << "Evaluating ngrams with " << ngram_size << " characters" << std::endl;

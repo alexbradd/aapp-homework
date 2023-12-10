@@ -48,4 +48,4 @@ fi
 # mpirun -np "$parallelism_level" "$application_filepath" < "$input_filepath" > "$output_filepath"
 #
 # We do not need MPI run since we are using OpenMP
-"$application_filepath" "$parallelism_level" < "$input_filepath" >"$output_filepath"
+"$application_filepath" "$parallelism_level" "$input_filepath" > "$output_filepath"
